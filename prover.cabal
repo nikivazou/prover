@@ -23,7 +23,7 @@ library
 executable prover 
   default-language:    Haskell98
   build-depends:       liquid-fixpoint >= 0.5
-                     , base >=4.8
+                     , base >=4.8, parsec
   hs-source-dirs:      src
   
   main-is: Prover.hs

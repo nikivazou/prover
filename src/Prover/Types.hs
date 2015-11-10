@@ -4,9 +4,15 @@ module Prover.Types where
 
 import qualified Language.Fixpoint.Types as F 
 
+type BVar   = Var   ()
+type BCtor  = Ctor   ()
+type BAxiom = Axiom ()
+type BQuery = Query ()
 
-data Axiom a = Axiom { axiom_vars :: [Var a]
-                     , axiom_body :: Expr a
+
+data Axiom a = Axiom { axiom_name :: F.Symbol
+                     , axiom_vars :: [Var a]
+                     , axiom_body :: Predicate a
                      } 
 
 data Var a   = Var { var_name :: F.Symbol
@@ -19,7 +25,7 @@ type Ctor a  = Var a
 data Expr a  = EVar (Var a) 
              | EApp (Ctor a) [Expr a]
 
-type Predicate a = F.Pred
+newtype Predicate a = Pred F.Pred
 
 type Proof a     = [Instance a]
 
@@ -28,20 +34,24 @@ data Instance a  = Inst { inst_axiom :: Axiom a
                         }
 
 
-data Query a = Query { pr_axioms :: [Axiom a] 
-                     , pr_ctors  :: [Ctor a] 
-                     , pr_vars   :: [Var a] 
-                     , pr_pred   :: Predicate a
+data Query a = Query { q_axioms :: [Axiom a] 
+                     , q_ctors  :: [Ctor a] 
+                     , q_vars   :: [Var a] 
+                     , q_goal   :: Predicate a
                      } 
 
+instance Monoid (Predicate a) where
+    mempty                      = Pred mempty 
+    mappend (Pred p1) (Pred p2) = Pred (p1 `mappend` p2)
+
 instance Monoid (Query a) where
-    mempty        = Query { pr_axioms = mempty
-                          , pr_ctors  = mempty
-                          , pr_vars   = mempty
-                          , pr_pred   = mempty
+    mempty        = Query { q_axioms = mempty
+                          , q_ctors  = mempty
+                          , q_vars   = mempty
+                          , q_goal   = mempty
                           }
-    mappend q1 q2 = Query { pr_axioms = pr_axioms q1 `mappend` pr_axioms q2
-                          , pr_ctors  = pr_ctors  q1 `mappend` pr_ctors  q2 
-                          , pr_vars   = pr_vars   q1 `mappend` pr_vars   q2 
-                          , pr_pred   = pr_pred   q1 `mappend` pr_pred   q2 
+    mappend q1 q2 = Query { q_axioms = q_axioms q1 `mappend` q_axioms q2
+                          , q_ctors  = q_ctors  q1 `mappend` q_ctors  q2 
+                          , q_vars   = q_vars   q1 `mappend` q_vars   q2 
+                          , q_goal   = q_goal   q1 `mappend` q_goal   q2 
                           }
