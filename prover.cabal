@@ -1,0 +1,30 @@
+name:                prover
+version:             0.1.0.0
+synopsis:            Automatic Prover of Logical Predicates
+license:             GPL-2
+license-file:        LICENSE
+author:              Niki Vazou
+maintainer:          nvazou@cs.ucsd.edu
+copyright:           2015 Niki Vazou, UC San Diego
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >=1.10
+
+library
+  -- exposed-modules:     
+  -- other-modules:       
+  -- other-extensions:    
+  build-depends:       base >=4.8 && <4.9
+  hs-source-dirs:      src
+  default-language:    Haskell98
+
+
+
+executable prover 
+  default-language:    Haskell98
+  build-depends:       liquid-fixpoint >= 0.5
+                     , base >=4.8
+  hs-source-dirs:      src
+  
+  main-is: Prover.hs
+  ghc-options: -Werror -W
