@@ -4,6 +4,15 @@ import Prover.Types
 
 import Language.Fixpoint.PrettyPrint
 
+instance PPrint (Var a) where
+   pprint = pprint . var_name 
+
+instance PPrint (Expr a) where
+   pprint = pprint . mkExpr 
+
+instance PPrint (Predicate a) where
+   pprint = pprint . p_pred 
+
 instance Show (Axiom a) where
    show a = "\n\nAxiom: " ++ par(show (axiom_vars a)) ++ show (axiom_body a)
 

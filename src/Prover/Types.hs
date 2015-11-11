@@ -3,6 +3,7 @@
 module Prover.Types where
 
 import qualified Language.Fixpoint.Types as F 
+import Language.Fixpoint.Types hiding (Predicate, EApp, EVar, Expr)
 
 type BVar   = Var   ()
 type BCtor  = Ctor   ()
@@ -10,13 +11,13 @@ type BAxiom = Axiom ()
 type BQuery = Query ()
 
 
-data Axiom a = Axiom { axiom_name :: F.Symbol
+data Axiom a = Axiom { axiom_name :: Symbol
                      , axiom_vars :: [Var a]
                      , axiom_body :: Predicate a
                      } 
 
-data Var a   = Var { var_name :: F.Symbol
-                   , var_sort :: F.Sort 
+data Var a   = Var { var_name :: Symbol
+                   , var_sort :: Sort 
                    , var_info :: a 
                    } 
 
@@ -25,7 +26,7 @@ type Ctor a  = Var a
 data Expr a  = EVar (Var a) 
              | EApp (Ctor a) [Expr a]
 
-newtype Predicate a = Pred F.Pred
+newtype Predicate a = Pred {p_pred :: Pred}
 
 type Proof a     = [Instance a]
 
@@ -55,3 +56,17 @@ instance Monoid (Query a) where
                           , q_vars   = q_vars   q1 `mappend` q_vars   q2 
                           , q_goal   = q_goal   q1 `mappend` q_goal   q2 
                           }
+
+
+instance F.Subable (Predicate a) where
+  subst su (Pred p) = Pred $ subst su p 
+  substa su (Pred p) = Pred $ substa su p 
+  substf su (Pred p) = Pred $ substf su p 
+  syms (Pred p)     = syms p 
+
+mkExpr :: Expr a -> F.Expr
+mkExpr (EVar v)    = F.EVar (var_name v)
+mkExpr (EApp c es) = F.EApp (F.dummyLoc $ var_name c) (mkExpr <$> es)
+
+
+
