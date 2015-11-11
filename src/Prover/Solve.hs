@@ -1,32 +1,42 @@
 module Prover.Solve where
 
 import Prover.Types
+import Prover.SMTInterface
 import Prover.Pretty ()
 
+import Prover.Misc (findM, powerset)
+
+import Language.Fixpoint.Smt.Interface (Context)
+
+-- import Language.Fixpoint.Misc
 import Language.Fixpoint.Sort
-import Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Types as F 
 
 import Data.List  (nubBy)
 import Data.Maybe (isJust)
 
-import Debug.Trace
-
-solve :: Query a -> Proof a
-solve q = trace (show q ++ "\n\nSorts = \n\n" ++ showpp (pprint sorts) ++ "\n\nES = \n\n" ++ 
-                   showpp (pprint es) ++ 
-                   "\n\nINSTANCES\n\n" ++ showpp (pprint is) 
-                 ++ "\n\n") [] 
+solve :: Query a -> IO (Proof a)
+solve q = 
+  do cxt <- makeContext (q_fname q ++ ".smt" ) env
+     b   <- checkValid cxt (p_pred . inst_pred <$> is) (p_pred $ q_goal q)  
+     if b then Proof <$> minize cxt is (q_goal q) else return Invalid  
   where 
     sorts = makeSorts q
     es    = [(s, EVar <$> filter (unifiable s . var_sort) (q_vars q)) | s <- sorts]
     is    = concatMap (`instantiate` es) (q_axioms q)
+    env   = [ (var_name v, var_sort v) | v <- (q_ctors q ++ q_vars q)]
 
-instantiate :: Axiom a -> [(F.Sort, [Expr a])] -> [Predicate a]
-instantiate a ses = if any null ess then [] else axiomApply a <$> go [] (reverse $ ess)
+minize :: Context -> [Instance a] -> Predicate a -> IO [Instance a]
+minize cxt ps q 
+  = findM (\is -> checkValid cxt (p_pred . inst_pred <$> is) q') (powerset ps)
+  where
+    q'  = p_pred q
+
+instantiate :: Axiom a -> [(F.Sort, [Expr a])] -> [Instance a]
+instantiate a ses = if any null ess then [] else axiomInstance a <$> go [] (reverse $ ess)
     where
         sorts = var_sort <$> axiom_vars a 
-        ess   = snd <$> head ((\s' -> (filter (unifiable s' . fst) ses)) <$> sorts)
+        ess   = snd . head <$> ((\s' -> (filter (unifiable s' . fst) ses)) <$> sorts)
 
         go acc (es:ess) = go (combine acc es) ess 
         go acc []       = acc 
@@ -36,10 +46,14 @@ instantiate a ses = if any null ess then [] else axiomApply a <$> go [] (reverse
         combine _   []     = []
         combine acc (e:es) = (map (e:) acc) ++ combine acc es
 
-axiomApply :: Axiom a -> [Expr a] -> Predicate a 
-axiomApply a es 
-  = traceShow ("\n\nmkApp\n\n" ++ show a ++ "\n\nWITH\n\n" ++ show es ++ "\n\n") $ 
-       F.subst (F.mkSubst $ zip (var_name <$> (axiom_vars a)) (mkExpr <$> es)) (axiom_body a)
+
+
+axiomInstance :: Axiom a -> [Expr a] -> Instance a 
+axiomInstance a es 
+  = Inst { inst_axiom = a
+         , inst_args  = es
+         , inst_pred  = F.subst (F.mkSubst $ zip (var_name <$> (axiom_vars a)) (mkExpr <$> es)) (axiom_body a)
+         }
 
 
 makeSorts :: Query a -> [F.Sort]

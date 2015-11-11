@@ -14,4 +14,6 @@ main = getArgs >>= (runSolver . head)
 runSolver :: FilePath -> IO ()
 runSolver fn = 
   do query <- parseQuery fn
-     putStrLn ("initProver " ++ show (solve query))
+     sol   <- solve query
+     putStrLn ("\nInput = \n" ++ show query)     
+     putStrLn ("\nOuput = \n" ++ show sol)

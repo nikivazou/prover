@@ -28,10 +28,12 @@ data Expr a  = EVar (Var a)
 
 newtype Predicate a = Pred {p_pred :: Pred}
 
-type Proof a     = [Instance a]
+data Proof a     = Invalid 
+                 | Proof { p_evidence :: [Instance a]}
 
 data Instance a  = Inst { inst_axiom :: Axiom a 
                         , inst_args  :: [Expr a]
+                        , inst_pred  :: Predicate a
                         }
 
 
@@ -39,6 +41,7 @@ data Query a = Query { q_axioms :: [Axiom a]
                      , q_ctors  :: [Ctor a] 
                      , q_vars   :: [Var a] 
                      , q_goal   :: Predicate a
+                     , q_fname  :: FilePath
                      } 
 
 instance Monoid (Predicate a) where
@@ -50,11 +53,13 @@ instance Monoid (Query a) where
                           , q_ctors  = mempty
                           , q_vars   = mempty
                           , q_goal   = mempty
+                          , q_fname  = mempty
                           }
     mappend q1 q2 = Query { q_axioms = q_axioms q1 `mappend` q_axioms q2
                           , q_ctors  = q_ctors  q1 `mappend` q_ctors  q2 
                           , q_vars   = q_vars   q1 `mappend` q_vars   q2 
                           , q_goal   = q_goal   q1 `mappend` q_goal   q2 
+                          , q_fname  = q_fname  q1 `mappend` q_fname  q2 
                           }
 
 
