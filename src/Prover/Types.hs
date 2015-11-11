@@ -19,12 +19,16 @@ data Axiom a = Axiom { axiom_name :: Symbol
 data Var a   = Var { var_name :: Symbol
                    , var_sort :: Sort 
                    , var_info :: a 
-                   } 
+                   }
+
+instance Eq (Var a) where
+  v1 == v2 = (var_name v1) == (var_name v2)
 
 type Ctor a  = Var a 
 
 data Expr a  = EVar (Var a) 
              | EApp (Ctor a) [Expr a]
+  deriving (Eq)
 
 newtype Predicate a = Pred {p_pred :: Pred}
 
@@ -43,6 +47,14 @@ data Query a = Query { q_axioms :: [Axiom a]
                      , q_goal   :: Predicate a
                      , q_fname  :: FilePath
                      } 
+
+-- | ArgExpr provides for each sort s
+-- | a list of expressions of sort s
+-- | and the list of constroctors that can create an expression of sort s.
+data ArgExpr a = ArgExpr { arg_sort  :: Sort
+                         , arg_exprs :: [Expr a]
+                         , arg_ctors :: [Ctor a]   
+                         }
 
 instance Monoid (Predicate a) where
     mempty                      = Pred mempty 

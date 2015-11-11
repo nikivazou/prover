@@ -4,7 +4,7 @@ import Prover.Types
 import Prover.SMTInterface
 import Prover.Pretty ()
 
-import Prover.Misc (findM, powerset)
+import Prover.Misc (findM, powerset, combine2)
 
 import Language.Fixpoint.Smt.Interface (Context)
 
@@ -18,35 +18,46 @@ import Data.Maybe (isJust)
 solve :: Query a -> IO (Proof a)
 solve q = 
   do cxt <- makeContext (q_fname q ++ ".smt" ) env
-     b   <- checkValid cxt (p_pred . inst_pred <$> is) (p_pred $ q_goal q)  
-     if b then Proof <$> minize cxt is (q_goal q) else return Invalid  
+     iterativeSolve 2 cxt es (p_pred $ q_goal q) (q_axioms q)
   where 
     sorts = makeSorts q
-    es    = [(s, EVar <$> filter (unifiable s . var_sort) (q_vars q)) | s <- sorts]
-    is    = concatMap (`instantiate` es) (q_axioms q)
+    es    = initExpressions (q_vars q) (q_ctors q) sorts 
     env   = [ (var_name v, var_sort v) | v <- (q_ctors q ++ q_vars q)]
 
-minize :: Context -> [Instance a] -> Predicate a -> IO [Instance a]
-minize cxt ps q 
-  = findM (\is -> checkValid cxt (p_pred . inst_pred <$> is) q') (powerset ps)
-  where
-    q'  = p_pred q
 
-instantiate :: Axiom a -> [(F.Sort, [Expr a])] -> [Instance a]
-instantiate a ses = if any null ess then [] else axiomInstance a <$> go [] (reverse $ ess)
+iterativeSolve :: Int -> Context -> [ArgExpr a] -> F.Pred -> [Axiom a] -> IO (Proof a)
+iterativeSolve iter cxt es q axioms = go [] ((\e -> e{arg_exprs = []}) <$> es) es 0 
+  where 
+    go _  _      _  i | i == iter = return Invalid 
+    go as old_es es i = do b   <- checkValid cxt (p_pred . inst_pred <$> is) q  
+                           if b then Proof <$> minize cxt is q
+                                else go is (zipWith appendExprs es old_es) new_es (i+1)
+                        where 
+                         is     = concatMap (instantiate old_es es) axioms ++ as 
+                         new_es = makeExpressions es
+                         appendExprs ae1 ae2 = ae1 {arg_exprs = (arg_exprs ae1) ++ (arg_exprs ae2)}
+
+
+makeExpressions :: [ArgExpr a] -> [ArgExpr a]
+makeExpressions _ = [] -- NV HERE!!!!
+
+initExpressions :: [Var a] -> [Ctor a] -> [F.Sort] -> [ArgExpr a]
+initExpressions vs ctors sorts 
+  = [ArgExpr { arg_sort  = s
+             , arg_exprs = EVar <$> filter (unifiable s . var_sort) vs
+             , arg_ctors = filter (unifiable s . var_sort) ctors
+             } | s <- sorts]
+
+minize :: Context -> [Instance a] -> F.Pred -> IO [Instance a]
+minize cxt ps q 
+  = findM (\is -> checkValid cxt (p_pred . inst_pred <$> is) q) (powerset ps)
+
+instantiate :: [ArgExpr a] -> [ArgExpr a] -> Axiom a -> [Instance a]
+instantiate oldses ses a = if any null ess then [] else axiomInstance a <$> combine2 oess ess
     where
         sorts = var_sort <$> axiom_vars a 
-        ess   = snd . head <$> ((\s' -> (filter (unifiable s' . fst) ses)) <$> sorts)
-
-        go acc (es:ess) = go (combine acc es) ess 
-        go acc []       = acc 
-
-
-        combine []  es     = map (\e -> [e]) es  
-        combine _   []     = []
-        combine acc (e:es) = (map (e:) acc) ++ combine acc es
-
-
+        ess   = arg_exprs . head <$> ((\s' -> (filter (unifiable s' . arg_sort) ses))    <$> sorts)
+        oess  = arg_exprs . head <$> ((\s' -> (filter (unifiable s' . arg_sort) oldses)) <$> sorts)
 
 axiomInstance :: Axiom a -> [Expr a] -> Instance a 
 axiomInstance a es 
@@ -64,6 +75,10 @@ makeSorts q = nubBy unifiable (asorts ++ csorts)
 
 
 -- | Manipulationg Sorts 
+
+resultSort :: F.Sort -> F.Sort 
+resultSort (F.FFunc _ ss) = last ss
+resultSort s              = s
 
 argumentsort :: F.Sort -> [F.Sort]
 argumentsort (F.FFunc _ ss) = init ss
