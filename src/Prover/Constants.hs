@@ -11,9 +11,10 @@ whenLoud act = if debug then act else return ()
 ------------------------   Constant Numbers   ---------------------------------
 -------------------------------------------------------------------------------
 
-delta, epsilon :: Int 
+delta, epsilon, default_depth :: Int 
 delta   = 5 
 epsilon = 10 
+default_depth = 2 
 
 
 -------------------------------------------------------------------------------

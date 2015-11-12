@@ -2,6 +2,8 @@
 
 module Prover.Types where
 
+import Prover.Constants (default_depth)
+
 import qualified Language.Fixpoint.Types as F 
 import Language.Fixpoint.Types hiding (Predicate, EApp, EVar, Expr)
 
@@ -73,7 +75,7 @@ instance Monoid (Query a) where
                           , q_vars   = mempty
                           , q_goal   = mempty
                           , q_fname  = mempty
-                          , q_depth   = maxBound 
+                          , q_depth  = default_depth 
                           }
     mappend q1 q2 = Query { q_axioms = q_axioms q1 `mappend` q_axioms q2
                           , q_ctors  = q_ctors  q1 `mappend` q_ctors  q2 

@@ -15,6 +15,8 @@ import qualified Language.Fixpoint.Types as F
 import Data.List  (nubBy)
 import Data.Maybe (isJust, fromJust)
 
+import System.IO
+
 import Control.Monad (filterM)
 
 solve :: Query a -> IO (Proof a)
@@ -33,7 +35,7 @@ iterativeSolve iter cxt es q axioms = go [] ((\e -> e{arg_exprs = []}) <$> es) 0
     go _  _      i _  | i == iter = return Invalid 
     go as old_es i es = do prf   <- findValid cxt is q   
                            if isJust prf 
-                                then Proof <$> minimize cxt (fromJust prf) q
+                                then putStrLn "Minmizing Solution" >>  Proof <$> minimize cxt (fromJust prf) q
                                 else makeExpressions cxt is es >>= mapM (assertExpressions cxt) >>=
                                      go is (zipWith appendExprs es old_es) (i+1) 
                         where 
@@ -57,9 +59,8 @@ minimize cxt ps q = go 1 [] ps
     go i acc is = do let (ps1, ps2) = splitAt n is 
                      let as = p_pred . inst_pred <$> (acc ++ ps2)
                      res <- checkValid cxt as q
-                     let msg = replicate 80 '*' -- show i ++ " / " ++ show delta 
-                     putStrLn msg 
-                     -- print ""
+                     let _msg = show i ++ " / " ++ show delta ++ "\n"
+                     putStr "*" >> hFlush stdout
                      if res then go (i+1) acc          ps2 
                             else go (i+1) (acc ++ ps1) ps2 
 
