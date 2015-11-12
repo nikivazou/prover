@@ -5,18 +5,19 @@ import Prover.Types
 import Text.Parsec
 
 import Language.Fixpoint.Parse hiding (bindP)
+import Language.Fixpoint.Types        (Pred(PTrue))
 
 parseQuery :: String -> IO BQuery
 parseQuery fn = parseFromFile (queryP fn) fn 
 
 
 queryP fn = do
+  vars   <- sepBy bindP whiteSpace
+  semi
   axioms <- sepBy axiomP whiteSpace
   semi
   ctors  <- sepBy ctorP whiteSpace
   semi 
-  vars   <- sepBy bindP whiteSpace
-  semi
   goal   <- goalP
   return $ mempty { q_axioms = axioms
                   , q_vars   = vars
@@ -29,7 +30,18 @@ goalP :: Parser (Predicate a)
 goalP = reserved "goal" >> colon >> predicateP
 
 ctorP :: Parser BCtor
-ctorP = reserved "constructor" >> varP
+ctorP = do reserved "constructor"
+           v <- varP
+           (vs, p) <- try (ctorAxiomP)
+           return $ Ctor v vs p
+
+ctorAxiomP 
+   =  do reserved "with"
+         reserved "forall"
+         aargs <- argumentsP
+         abody <- predicateP
+         return (aargs, abody) 
+  <|> return ([], Pred PTrue)
 
 bindP :: Parser BVar
 bindP = reserved "bind" >> varP

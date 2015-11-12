@@ -24,7 +24,13 @@ data Var a   = Var { var_name :: Symbol
 instance Eq (Var a) where
   v1 == v2 = (var_name v1) == (var_name v2)
 
-type Ctor a  = Var a 
+data Ctor a  = Ctor { ctor_var :: Var a
+                    , ctor_vars :: [Var a]
+                    , ctor_prop :: Predicate a
+                    } 
+
+instance Eq (Ctor a) where
+  c1 == c2 = (ctor_var c1) == (ctor_var c2)
 
 data Expr a  = EVar (Var a) 
              | EApp (Ctor a) [Expr a]
@@ -83,7 +89,7 @@ instance F.Subable (Predicate a) where
 
 mkExpr :: Expr a -> F.Expr
 mkExpr (EVar v)    = F.EVar (var_name v)
-mkExpr (EApp c es) = F.EApp (F.dummyLoc $ var_name c) (mkExpr <$> es)
+mkExpr (EApp c es) = F.EApp (F.dummyLoc $ var_name $ ctor_var c) (mkExpr <$> es)
 
 
 

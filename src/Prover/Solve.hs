@@ -8,12 +8,16 @@ import Prover.Misc (findM, powerset, combine2, combine)
 
 import Language.Fixpoint.Smt.Interface (Context)
 
-import Language.Fixpoint.Misc
 import Language.Fixpoint.Sort
+import Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F 
 
 import Data.List  (nubBy)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromJust)
+
+import Control.Monad (filterM)
+
+-- import Debug.Trace (trace)
 
 solve :: Query a -> IO (Proof a)
 solve q = 
@@ -22,46 +26,86 @@ solve q =
   where 
     sorts = makeSorts q
     es    = initExpressions (q_vars q) (q_ctors q) sorts 
-    env   = [ (var_name v, var_sort v) | v <- (q_ctors q ++ q_vars q)]
+    env   = [ (var_name v, var_sort v) | v <- ((ctor_var <$> q_ctors q) ++ q_vars q)]
 
 
 iterativeSolve :: Int -> Context -> [ArgExpr a] -> F.Pred -> [Axiom a] -> IO (Proof a)
-iterativeSolve iter cxt es q axioms = go [] ((\e -> e{arg_exprs = []}) <$> es) es 0 
+iterativeSolve iter cxt es q axioms = go [] ((\e -> e{arg_exprs = []}) <$> es) 0 es
   where 
-    go _  _      _  i | i == iter = return Invalid 
-    go as old_es es i = do b   <- checkValid cxt (p_pred . inst_pred <$> is) q  
-                           if b then Proof <$> minize cxt is q
-                                else go is (zipWith appendExprs es old_es) new_es (i+1)
+    go _  _      i _  | i == iter = return Invalid 
+    go as old_es i es = do prf   <- findValid cxt is q   
+                           if isJust prf 
+                                then Proof <$> minimize cxt (fromJust prf) q
+                                else makeExpressions cxt is es >>= mapM (assertExpressions cxt) >>=
+                                     go is (zipWith appendExprs es old_es) (i+1) 
                         where 
-                         is     = concatMap (instantiate old_es es) axioms ++ as 
-                         new_es = makeExpressions es
+                         is = concatMap (instantiate old_es es) axioms ++ as
                          appendExprs ae1 ae2 = ae1 { arg_exprs = (arg_exprs ae1) ++ (arg_exprs ae2)
                                                    , arg_ctors = (arg_ctors ae1) ++ (arg_ctors ae2) 
                                                    }
 
 
-makeExpressions :: [ArgExpr a] -> [ArgExpr a]
-makeExpressions es
-  = [ArgExpr { arg_sort  = s 
-             , arg_exprs = concatMap (instantiateCtor es) cs
-             , arg_ctors = cs
-             } | ArgExpr s _ cs <- es]
+
+findValid :: Context -> [Instance a] -> F.Pred -> IO (Maybe [Instance a])
+findValid cxt ps q 
+  = (\b -> if b then Just ps else Nothing) <$> checkValid cxt (p_pred . inst_pred <$> ps) q
+
+minimize :: Context -> [Instance a] -> F.Pred -> IO [Instance a]
+minimize cxt ps q | length ps < 10 = fromJust <$> bruteSearch cxt ps q 
+minimize cxt ps q = go 0 [] ps 
+  where
+    n = length ps `div` 5
+    go i acc is | i == 20 = return (acc ++ is) -- This is redundant but leave it here for debugging 
+    go _ acc [] = if (length acc < length ps) then minimize cxt acc q else fromJust <$> bruteSearch cxt acc q  
+    go i acc is = do let (ps1, ps2) = splitAt n is 
+                     let as = p_pred . inst_pred <$> (acc ++ ps2)
+                     res <- checkValid cxt as q
+                     if res then go (traceShow ("\n\nIteration with\n" ++ show res ++ "\n\nPS2 = " ++ show (length ps2) ++ "\n\nAcc = " ++ show (length acc)) (i+1)) acc ps2 
+                            else go (traceShow ("\n\nIteration with\n" ++ show res ++ "\n\nPS2 = " ++ show (length ps2) ++ "\n\nAcc = " ++ show (length acc)) (i+1)) (acc ++ ps1) ps2 
+
+bruteSearch :: Context -> [Instance a] -> F.Pred -> IO (Maybe [Instance a])
+bruteSearch cxt ps q 
+  = findM (\is -> checkValid cxt (p_pred . inst_pred <$> is) q) (powerset ps)
+
+filterEquivalentExpressions :: Context -> [Instance a] -> (ArgExpr a, ArgExpr a) -> IO (ArgExpr a)
+filterEquivalentExpressions cxt is (aeold, aenew) 
+  = do es <- filterM f (arg_exprs aenew)
+       return $ aenew{arg_exprs = es}
+  where 
+    f e = not <$> checkValid cxt (p_pred . inst_pred <$> is) (F.POr [F.PAtom F.Eq (mkExpr e) (mkExpr e') | e' <- (arg_exprs aeold)])
+
+
+assertExpressions :: Context -> ArgExpr a -> IO (ArgExpr a)
+assertExpressions cxt ae = (mapM go $ arg_exprs ae) >> return ae 
+  where
+    go (EVar _)    = return ()
+    go (EApp c es) = do mapM go es 
+                        assert cxt $ predCtor c (mkExpr <$> es)
+
+    predCtor c es = let su = F.mkSubst $ zip (var_name <$> ctor_vars c) es
+                    in F.subst su (p_pred $ ctor_prop c)
+
+
+makeExpressions :: Context -> [Instance a] -> [ArgExpr a] -> IO [ArgExpr a]
+makeExpressions cxt is es 
+  = mapM (filterEquivalentExpressions cxt is) $ zip es 
+           [ArgExpr { arg_sort  = s 
+                    , arg_exprs = concatMap (instantiateCtor es) cs
+                    , arg_ctors = cs
+                    } | ArgExpr s _ cs <- es]
 
 initExpressions :: [Var a] -> [Ctor a] -> [F.Sort] -> [ArgExpr a]
 initExpressions vs ctors sorts 
   = [ArgExpr { arg_sort  = s
              , arg_exprs = EVar <$> filter (unifiable s . var_sort) vs
-             , arg_ctors = filter (unifiable s . resultSort . var_sort) ctors
+             , arg_ctors = filter (unifiable s . resultSort . var_sort . ctor_var) ctors
              } | s <- sorts]
 
-minize :: Context -> [Instance a] -> F.Pred -> IO [Instance a]
-minize cxt ps q 
-  = findM (\is -> checkValid cxt (p_pred . inst_pred <$> is) q) (powerset ps)
 
 instantiateCtor :: [ArgExpr a] -> Ctor a -> [Expr a]
 instantiateCtor aes ctor = EApp ctor <$> combine ess 
   where
-    ess = arg_exprs . head <$> ((\s' -> (filter (unifiable s' . arg_sort) aes)) <$> (argumentsort $ var_sort ctor))
+    ess = arg_exprs . head <$> ((\s' -> (filter (unifiable s' . arg_sort) aes)) <$> (argumentsort $ var_sort $ ctor_var ctor))
 
 
 instantiate :: [ArgExpr a] -> [ArgExpr a] -> Axiom a -> [Instance a]
@@ -83,7 +127,7 @@ makeSorts :: Query a -> [F.Sort]
 makeSorts q = nubBy unifiable (asorts ++ csorts)
   where 
      asorts = var_sort <$> (concatMap axiom_vars $ q_axioms q)
-     csorts = concatMap argumentsort (var_sort <$> q_ctors q)
+     csorts = concatMap argumentsort (var_sort . ctor_var <$> q_ctors q)
 
 
 -- | Manipulationg Sorts 

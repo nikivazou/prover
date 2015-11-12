@@ -1,10 +1,10 @@
+bind x : L a
+bind N : func(1, [L @(0)])
+bind y : b; 
+
 axiom axiom_append_nil : forall [xs : L a] xs = xs; 
 
 constructor append : func(1, [L @(0); L @(0); L @(0)])
 constructor C      : func(1, [@(0); L @(0); L @(0)]);
-
-bind x : L a
-bind N : func(1, [L @(0)])
-bind y : b; 
 
 goal  : append N N == N 
