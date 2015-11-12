@@ -1,5 +1,6 @@
 Parsing
 -------
+- comments
 - OK, really need to do that!!!! check well formedness of axioms etc
 - add reg test
 

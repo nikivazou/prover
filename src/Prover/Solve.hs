@@ -3,13 +3,13 @@ module Prover.Solve where
 import Prover.Types
 import Prover.SMTInterface
 import Prover.Pretty ()
+import Prover.Constants 
 
 import Prover.Misc (findM, powerset, combine2, combine)
 
 import Language.Fixpoint.Smt.Interface (Context)
 
 import Language.Fixpoint.Sort
-import Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F 
 
 import Data.List  (nubBy)
@@ -17,12 +17,10 @@ import Data.Maybe (isJust, fromJust)
 
 import Control.Monad (filterM)
 
--- import Debug.Trace (trace)
-
 solve :: Query a -> IO (Proof a)
 solve q = 
-  do cxt <- makeContext (q_fname q ++ ".smt") env
-     iterativeSolve 2 cxt es (p_pred $ q_goal q) (q_axioms q)
+  do cxt <- makeContext (smtFile $ q_fname q) env
+     iterativeSolve (q_depth q) cxt es (p_pred $ q_goal q) (q_axioms q)
   where 
     sorts = makeSorts q
     es    = initExpressions (q_vars q) (q_ctors q) sorts 
@@ -51,17 +49,19 @@ findValid cxt ps q
   = (\b -> if b then Just ps else Nothing) <$> checkValid cxt (p_pred . inst_pred <$> ps) q
 
 minimize :: Context -> [Instance a] -> F.Pred -> IO [Instance a]
-minimize cxt ps q | length ps < 10 = fromJust <$> bruteSearch cxt ps q 
-minimize cxt ps q = go 0 [] ps 
+minimize cxt ps q | length ps < epsilon = fromJust <$> bruteSearch cxt ps q 
+minimize cxt ps q = go 1 [] ps 
   where
-    n = length ps `div` 5
-    go i acc is | i == 20 = return (acc ++ is) -- This is redundant but leave it here for debugging 
+    n = length ps `div` delta
     go _ acc [] = if (length acc < length ps) then minimize cxt acc q else fromJust <$> bruteSearch cxt acc q  
     go i acc is = do let (ps1, ps2) = splitAt n is 
                      let as = p_pred . inst_pred <$> (acc ++ ps2)
                      res <- checkValid cxt as q
-                     if res then go (traceShow ("\n\nIteration with\n" ++ show res ++ "\n\nPS2 = " ++ show (length ps2) ++ "\n\nAcc = " ++ show (length acc)) (i+1)) acc ps2 
-                            else go (traceShow ("\n\nIteration with\n" ++ show res ++ "\n\nPS2 = " ++ show (length ps2) ++ "\n\nAcc = " ++ show (length acc)) (i+1)) (acc ++ ps1) ps2 
+                     let msg = replicate 80 '*' -- show i ++ " / " ++ show delta 
+                     putStrLn msg 
+                     -- print ""
+                     if res then go (i+1) acc          ps2 
+                            else go (i+1) (acc ++ ps1) ps2 
 
 bruteSearch :: Context -> [Instance a] -> F.Pred -> IO (Maybe [Instance a])
 bruteSearch cxt ps q 

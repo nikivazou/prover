@@ -12,6 +12,8 @@ parseQuery fn = parseFromFile (queryP fn) fn
 
 
 queryP fn = do
+  n      <- depthP
+  semi
   vars   <- sepBy bindP whiteSpace
   semi
   axioms <- sepBy axiomP whiteSpace
@@ -24,7 +26,13 @@ queryP fn = do
                   , q_ctors  = ctors
                   , q_goal   = goal
                   , q_fname  = fn
+                  , q_depth  = n 
                   }
+
+
+depthP :: Parser Int 
+depthP = try (reserved "depth" >> reserved "=" >> fromInteger <$> integer)
+      <|> return maxBound
 
 goalP :: Parser (Predicate a)
 goalP = reserved "goal" >> colon >> predicateP

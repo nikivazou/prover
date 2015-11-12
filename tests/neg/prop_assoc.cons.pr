@@ -1,4 +1,4 @@
-depth = 2; 
+depth = 1; 
 
 bind length : func(1, [L @(0); int])
 
