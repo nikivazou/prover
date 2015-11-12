@@ -7,10 +7,10 @@ import Text.Parsec
 import Language.Fixpoint.Parse hiding (bindP)
 
 parseQuery :: String -> IO BQuery
-parseQuery = parseFromFile queryP
+parseQuery fn = parseFromFile (queryP fn) fn 
 
 
-queryP = do
+queryP fn = do
   axioms <- sepBy axiomP whiteSpace
   semi
   ctors  <- sepBy ctorP whiteSpace
@@ -22,6 +22,7 @@ queryP = do
                   , q_vars   = vars
                   , q_ctors  = ctors
                   , q_goal   = goal
+                  , q_fname  = fn
                   }
 
 goalP :: Parser (Predicate a)

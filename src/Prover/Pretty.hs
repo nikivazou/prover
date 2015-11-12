@@ -41,6 +41,10 @@ instance Show (Proof a) where
   show (Proof is) = "\nProof ::\n" ++ (sep "\n" $ map show is)
 
 
+instance Show (ArgExpr a) where
+  show ae = "\nArgExpr for " ++ show (arg_sort ae) ++ "\n\nEXPRS = \n\n" ++  (sep ", " (map show $ arg_exprs ae)) ++ 
+            "\n\nConstructors = " ++ (sep ", " (map show $ arg_ctors ae)) ++ "\n\n"
+
 showNum ls = concat [ show i ++ " . " ++ show l | (l, i) <- zip ls [1..] ]
 
 

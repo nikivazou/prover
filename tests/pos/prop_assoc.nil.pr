@@ -1,0 +1,11 @@
+axiom axiom_append_nil : forall [xs : L a] append xs N = xs
+axiom axiom_append_nil : forall [xs : L a] append N xs = xs; 
+
+constructor append : func(1, [L @(0); L @(0); L @(0)])
+constructor C      : func(1, [@(0); L @(0); L @(0)]);
+
+bind ys : L a
+bind N : func(1, [L @(0)])
+bind zs : L a; 
+
+goal  : append (append N ys) zs == append N (append ys zs)
