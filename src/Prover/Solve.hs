@@ -21,12 +21,16 @@ import Control.Monad (filterM)
 
 solve :: Query a -> IO (Proof a)
 solve q = 
-  do cxt <- makeContext (smtFile $ q_fname q) env
-     iterativeSolve (q_depth q) cxt es (p_pred $ q_goal q) (q_axioms q)
+  do putStrLn $ "Solving Query\n" ++ show q
+     putStrLn $ "\n\nFILE\n\n" ++ (smtFile $ q_fname q)
+     cxt <- makeContext (smtFile $ q_fname q) env
+     proof <- iterativeSolve (q_depth q) cxt es (p_pred $ q_goal q) (q_axioms q)
+     putStrLn $ ("\nProof = \n" ++ show proof)
+     return proof
   where 
     sorts = makeSorts q
     es    = initExpressions (q_vars q) (q_ctors q) sorts 
-    env   = [ (var_name v, var_sort v) | v <- ((ctor_var <$> q_ctors q) ++ q_vars q)]
+    env   = [ (var_name v, var_sort v) | v <- ((ctor_var <$> q_ctors q) ++ q_vars q ++ q_env q)]
 
 
 iterativeSolve :: Int -> Context -> [ArgExpr a] -> F.Pred -> [Axiom a] -> IO (Proof a)
@@ -35,7 +39,8 @@ iterativeSolve iter cxt es q axioms = go [] ((\e -> e{arg_exprs = []}) <$> es) 0
     go _  _      i _  | i == iter = return Invalid 
     go as old_es i es = do prf   <- findValid cxt is q   
                            if isJust prf 
-                                then putStrLn "Minmizing Solution" >>  Proof <$> minimize cxt (fromJust prf) q
+                                then do putStrLn "Minimizing Solution"
+                                        Proof <$> minimize cxt (fromJust prf) q
                                 else makeExpressions cxt is es >>= mapM (assertExpressions cxt) >>=
                                      go is (zipWith appendExprs es old_es) (i+1) 
                         where 

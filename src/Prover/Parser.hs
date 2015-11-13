@@ -14,11 +14,13 @@ parseQuery fn = parseFromFile (queryP fn) fn
 
 queryP fn = do
   n      <- depthP
-  vars   <- sepBy bindP whiteSpace
+  bs     <- sepBy envP   whiteSpace
+  semi
+  vars   <- sepBy bindP  whiteSpace
   semi
   axioms <- sepBy axiomP whiteSpace
   semi
-  ctors  <- sepBy ctorP whiteSpace
+  ctors  <- sepBy ctorP  whiteSpace
   semi 
   goal   <- goalP
   return $ mempty { q_axioms = axioms
@@ -27,6 +29,7 @@ queryP fn = do
                   , q_goal   = goal
                   , q_fname  = fn
                   , q_depth  = n 
+                  , q_env    = bs
                   }
 
 
@@ -53,6 +56,9 @@ ctorAxiomP
 
 bindP :: Parser BVar
 bindP = reserved "bind" >> varP
+
+envP :: Parser BVar
+envP = reserved "constant" >> varP
 
 predicateP :: Parser (Predicate a)
 predicateP = Pred <$> predP

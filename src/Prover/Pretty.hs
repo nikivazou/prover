@@ -35,10 +35,11 @@ instance Show (Predicate a) where
 
 instance Show (Query a) where
    show q = "\nQuery\n" ++ 
-              "\nAxioms::\n" ++ (showNum $ q_axioms q) ++ 
+              "\nAxioms::" ++ (showNum $ q_axioms q) ++ 
               "\nVars  ::" ++ (sep ", " $ map showpp $ q_vars   q) ++ 
-              "\nCtors ::" ++ (sep ", " $ map show $ q_ctors  q) ++ 
-              "\nGoal  ::" ++ (show $ q_goal q)
+              "\nCtors ::" ++ (sep ", " $ map show   $ q_ctors  q) ++ 
+              "\nGoal  ::" ++ (show $ q_goal q) ++ 
+              "\nFname ::" ++ (show $ q_fname q)
 
 instance Show (Proof a) where
   show Invalid    = "\nInvalid\n"
