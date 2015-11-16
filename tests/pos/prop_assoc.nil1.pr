@@ -1,0 +1,18 @@
+depth = 2;
+
+constant append : func(1, [Arrow (Append.L  @(0)) (Arrow (Append.L  @(0)) (Append.L  @(0)))])
+constant runFun : func(2, [Arrow @(0) @(1); @(0); @(1)]);
+
+bind ys : Append.L  a
+bind Append.N#r5ni : func(1, [Append.L  @(0)])
+bind zs : Append.L  a; 
+
+axiom axiom_appen_nil1 : forall [lq_tmp_x_174 : (Append.L  @(0))] runFun (runFun append lq_tmp_x_174) (Append.N#r5ni) == lq_tmp_x_174
+axiom axiom_appen_nil : forall [lq_tmp_x_174 : (Append.L  @(0))] runFun (runFun append (Append.N#r5ni)) lq_tmp_x_174 == lq_tmp_x_174;
+
+
+constructor Append.append#a5CS : func(1, [Append.L @(0); (Append.L  @(0)); (Append.L  @(0))]) with forall [xs: Append.L @(0), ys: Append.L @(0)] (runFun (runFun append xs) ys == Append.append#a5CS xs ys)
+
+constructor C      : func(1, [@(0); (Append.L  @(0)); (Append.L  @(0))]);
+
+goal  : runFun (runFun append (Append.N#r5ni)) (runFun (runFun append ys) zs) == (runFun (runFun append ys) zs)

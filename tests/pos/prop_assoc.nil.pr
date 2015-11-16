@@ -1,3 +1,4 @@
+;
 bind ys : L a
 bind N : func(1, [L @(0)])
 bind zs : L a; 

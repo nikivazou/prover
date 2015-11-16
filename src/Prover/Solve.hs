@@ -79,6 +79,8 @@ filterEquivalentExpressions cxt is (aeold, aenew)
   = do es <- filterM f (arg_exprs aenew)
        return $ aenew{arg_exprs = es}
   where 
+    f e@(EApp c es) = not <$> checkValid cxt ((predCtor c (mkExpr <$> es)):(p_pred . inst_pred <$> is))
+                                     (F.POr [F.PAtom F.Eq (mkExpr e) (mkExpr e') | e' <- (arg_exprs aeold)])
     f e = not <$> checkValid cxt (p_pred . inst_pred <$> is) (F.POr [F.PAtom F.Eq (mkExpr e) (mkExpr e') | e' <- (arg_exprs aeold)])
 
 
@@ -89,8 +91,8 @@ assertExpressions cxt ae = (mapM go $ arg_exprs ae) >> return ae
     go (EApp c es) = do mapM go es 
                         assert cxt $ predCtor c (mkExpr <$> es)
 
-    predCtor c es = let su = F.mkSubst $ zip (var_name <$> ctor_vars c) es
-                    in F.subst su (p_pred $ ctor_prop c)
+predCtor c es = let su = F.mkSubst $ zip (var_name <$> ctor_vars c) es
+                in F.subst su (p_pred $ ctor_prop c)
 
 
 makeExpressions :: Context -> [Instance a] -> [ArgExpr a] -> IO [ArgExpr a]
