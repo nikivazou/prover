@@ -9,6 +9,7 @@ import Prover.Misc (findM, powerset, combine2, combine)
 
 import Language.Fixpoint.Smt.Interface (Context)
 
+-- import Language.Fixpoint.Misc
 import Language.Fixpoint.Sort
 import qualified Language.Fixpoint.Types as F 
 
@@ -22,9 +23,9 @@ import Control.Monad (filterM)
 solve :: Query a -> IO (Proof a)
 solve q = 
   do putStrLn $ "Solving Query\n" ++ show q
-     putStrLn $ "\n\nFILE\n\n" ++ (smtFile $ q_fname q)
-     cxt <- makeContext (smtFile $ q_fname q) env
-     proof <- iterativeSolve (q_depth q) cxt es (p_pred $ q_goal q) (q_axioms q)
+     cxt     <- makeContext (smtFile $ q_fname q) env
+     mapM_ (assert cxt) (p_pred <$> q_decls q)
+     proof   <- iterativeSolve (q_depth q) cxt es (p_pred $ q_goal q) (q_axioms q)
      putStrLn $ ("\nProof = \n" ++ show proof)
      return proof
   where 
@@ -147,11 +148,13 @@ argumentsort (F.FFunc _ ss) = init ss
 argumentsort _            = []
 
 unifiable :: F.Sort -> F.Sort -> Bool
-unifiable (F.FVar _) (F.FVar _) = True 
-unifiable (F.FVar _) (F.FObj _) = True 
-unifiable (F.FObj _) (F.FVar _) = True 
-unifiable (F.FVar _) _          = False 
-unifiable _          (F.FVar _) = False 
+unifiable (F.FVar _)   (F.FVar _)     = True 
+unifiable (F.FVar _)   (F.FObj _)     = True 
+unifiable (F.FObj _)   (F.FVar _)     = True 
+unifiable (F.FVar _)   _              = False 
+unifiable _            (F.FVar _)     = False 
+unifiable (F.FObj _)   (F.FObj _)     = True 
+unifiable (F.FApp c s) (F.FApp c' s') = unifiable c c' && unifiable s s'
 unifiable t1 t2 = isJust $ unify t1 t2
 
 

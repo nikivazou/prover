@@ -14,14 +14,14 @@ instance PPrint (Predicate a) where
    pprint = pprint . p_pred 
 
 instance Show (Axiom a) where
-   show a = showpp (axiom_name a) ++ ": " ++ "forall"++ par(sep ", " $ map showpp (axiom_vars a)) ++ "."  ++ show (axiom_body a) ++ "\n"
+   show a = showpp (axiom_name a) ++ ": " ++ "forall"++ par(sep ", " $ map show (axiom_vars a)) ++ "."  ++ show (axiom_body a) ++ "\n"
 
 instance Show (Instance a) where
-   show i = "Instance :: " ++ show (inst_axiom i) ++ "With Arguments :: " ++  (sep ", " $ map show (inst_args i)) 
+   show i = "\nInstance :: " ++ show (inst_axiom i) ++ "With Arguments :: " ++  (sep ", " $ map show (inst_args i)) 
                           --  ++ "\n\nPredicate = " ++ show (inst_pred i)  ++ "\n\n" 
 
 instance Show (Var a) where
-   show v = showpp (var_name v)
+   show v = showpp (var_name v) ++ " : " ++ showpp (var_sort v) 
 
 instance Show (Ctor a) where
    show c = showpp (ctor_var c)
@@ -38,6 +38,7 @@ instance Show (Query a) where
               "\nAxioms::" ++ (showNum $ q_axioms q) ++ 
               "\nVars  ::" ++ (sep ", " $ map showpp $ q_vars   q) ++ 
               "\nCtors ::" ++ (sep ", " $ map show   $ q_ctors  q) ++ 
+              "\nDecls ::" ++ (sep ", " $ map show   $ q_decls  q) ++ 
               "\nGoal  ::" ++ (show $ q_goal q) ++ 
               "\nFname ::" ++ (show $ q_fname q)
 

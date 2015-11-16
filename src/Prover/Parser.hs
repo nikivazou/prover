@@ -18,6 +18,7 @@ queryP fn = do
   semi
   vars   <- sepBy bindP  whiteSpace
   semi
+  ds     <- declsP
   axioms <- sepBy axiomP whiteSpace
   semi
   ctors  <- sepBy ctorP  whiteSpace
@@ -30,8 +31,16 @@ queryP fn = do
                   , q_fname  = fn
                   , q_depth  = n 
                   , q_env    = bs
+                  , q_decls  = ds
                   }
 
+
+declsP :: Parser [Predicate a]
+declsP = try (do {n <- sepBy declP whiteSpace; semi; return n} )
+      <|> return []
+
+declP :: Parser (Predicate a)
+declP = reserved "declare" >> predicateP
 
 depthP :: Parser Int 
 depthP = try (do {reserved "depth"; reserved "="; n <- fromInteger <$> integer; semi; return n} )

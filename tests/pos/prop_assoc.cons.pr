@@ -4,18 +4,23 @@ constant length : func(1, [L @(0); int])
 constant ws     : L a;
 
 
+
 bind x  : a 
 bind xs : L a  
 bind ys : L a
 bind zs : L a;
 
 
+declare ws = C x xs  && length ws == 1 + length xs ;
+
+
+
 axiom axiom_append_nil  : forall [xs : L a]                   (append xs N = xs)
 axiom axiom_append_cons : forall [x: a, xs : L a, ys: L a]    (append (C x xs) ys = C x (append xs ys))
-axiom axiom_prop_assoc  : forall [ws : L a, ys: L a, zs: L a] ((length ws <= length xs) => (append (append ws ys) zs = append ws (append ys zs))); 
+axiom axiom_prop_assoc  : forall [xs : L a, ys: L a, zs: L a] ((length xs < length ws) => (append (append xs ys) zs = append ws (append ys zs))); 
 
 constructor append : func(1, [L @(0); L @(0); L @(0)]) 
 constructor N      : func(1, [L @(0)])                  with  forall [] length N == 0  
 constructor C      : func(1, [@(0); L @(0); L @(0)])    with  forall [x: a, xs : L a] length (C x xs) > length xs;
 
-goal  : (length xs < length (C x xs)) => append (append (C x xs) ys) zs == append (C x xs) (append ys zs)
+goal  : append (append (C x xs) ys) zs == append (C x xs) (append ys zs)
